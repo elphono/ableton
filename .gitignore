@@ -1,0 +1,19 @@
+# Environnement virtuel Python
+.venv/
+venv/
+
+# Caches Python
+__pycache__/
+*.pyc
+
+# Sorties audio/vidéo générées
+*.wav
+*.aif
+*.aiff
+*.mp3
+*.flac
+*.mp4
+
+# Système
+.DS_Store
+*.log
