@@ -4,16 +4,26 @@
 # ressemble a une panne du premier.
 set -uo pipefail
 
-REPO_WIN='C:\Users\elphono\dev\ableton-mcp'
-REPO='/mnt/c/Users/elphono/dev/ableton-mcp'
+# Chemins surchargeables. Par defaut, sous le profil Windows de l'utilisateur.
+#   ABLETON_MCP_DIR       checkout du serveur MCP (chemin WSL)
+#   ABLETON_USER_LIBRARY  User Library d'Ableton (chemin WSL)
+win_home() {
+  # Depuis un cwd Windows : sinon cmd.exe avertit sur stderr (chemin UNC).
+  (cd /mnt/c && wslpath -u "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")
+}
+if [ -z "${ABLETON_MCP_DIR:-}" ] || [ -z "${ABLETON_USER_LIBRARY:-}" ]; then
+  HOME_WIN="$(win_home)"
+fi
+REPO="${ABLETON_MCP_DIR:-$HOME_WIN/dev/ableton-mcp}"
+USER_LIBRARY="${ABLETON_USER_LIBRARY:-$HOME_WIN/Documents/Ableton/User Library}"
 PY="$REPO/.venv/Scripts/python.exe"
-SCRIPT_LIVE='/mnt/c/Users/elphono/Documents/Ableton/User Library/Remote Scripts/AbletonMCP/__init__.py'
+SCRIPT_LIVE="$USER_LIBRARY/Remote Scripts/AbletonMCP/__init__.py"
 
 ok()   { echo "  [ OK ]  $1"; }
 fail() { echo "  [FAIL]  $1"; }
 
 echo "1. Venv Windows"
-[ -x "$PY" ] && ok "$REPO_WIN\\.venv" || { fail "venv introuvable"; exit 1; }
+[ -x "$PY" ] && ok "$REPO/.venv" || { fail "venv introuvable dans $REPO (regler ABLETON_MCP_DIR)"; exit 1; }
 
 echo "2. Le serveur MCP s'importe"
 if "$PY" -c "import MCP_Server.server" 2>/dev/null; then

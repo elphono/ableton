@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
 """Mesurer tempo et tonalite d'un extrait audio.
 
-Sert a repondre a une seule question, celle qui commande le teaser : le groupe
-joue-t-il assez pres du master du commerce pour qu'on puisse poser le master
-sous une image ou on voit le chanteur ? Si le tempo ou la tonalite s'ecartent,
-les levres ne colleront pas, quel que soit le point de montage.
+Cas d'usage d'origine : un groupe joue-t-il assez pres du master du commerce
+pour qu'on puisse poser le master sous une image ou l'on voit le chanteur ? Si
+le tempo ou la tonalite s'ecartent, les levres ne colleront pas, quel que soit
+le point de montage.
 
-Une mesure classe, elle ne choisit pas. Comparer chaque plan a son master, et
-laisser Ant trancher a l'oreille sur ce qui reste.
+Une mesure classe, elle ne choisit pas : l'oreille tranche sur ce qui reste.
 
 Usage :
     python analyse_audio.py fichier.mp3 [fichier2.mp3 ...]
     python analyse_audio.py --csv dossier/*.mp3
 
-ffmpeg n'existe que cote Windows sur cette machine : les chemins /mnt/X/... sont
-traduits en X:\\... avant l'appel.
+ffmpeg est appele cote Windows (ffmpeg.exe dans le PATH) : les chemins
+/mnt/X/... sont traduits en X:\\... avant l'appel.
 """
 import subprocess
 import sys
 import os
 import numpy as np
+
+from wsl_paths import to_windows_path
 
 SR = 22050
 FFMPEG = "ffmpeg.exe"
@@ -30,13 +31,6 @@ MAJOR = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.
 MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-
-def to_windows_path(path):
-    """Traduire /mnt/e/x en E:\\x — ffmpeg est un binaire Windows."""
-    real = os.path.abspath(path)
-    if real.startswith("/mnt/") and len(real) > 6 and real[6] == "/":
-        return real[5].upper() + ":" + real[6:].replace("/", "\\")
-    return real
 
 
 def load_mono(path):
@@ -87,7 +81,21 @@ def tempo(spec, hop=512, bpm_min=60.0, bpm_max=200.0):
         if window[i] > window[i - 1] and window[i] >= window[i + 1]
     ]
     peaks.sort(key=lambda i: window[i], reverse=True)
-    return [round(60.0 * fps / (lag_min + i), 1) for i in peaks[:2]]
+    return [round(float(60.0 * fps / (lag_min + i + _vertex(window, i))), 1)
+            for i in peaks[:2]]
+
+
+def _vertex(window, i):
+    """Sub-frame offset of a peak, by fitting a parabola through its neighbours.
+
+    Lags are whole frames of 23 ms: at 120 BPM the true period, 21.5 frames,
+    would otherwise round to 21 or 22 and read 123.0 or 117.4 BPM.
+    """
+    a, b, c = window[i - 1], window[i], window[i + 1]
+    curvature = a - 2.0 * b + c
+    if curvature >= 0:
+        return 0.0
+    return 0.5 * (a - c) / curvature
 
 
 def chroma(spec, n_fft=2048):

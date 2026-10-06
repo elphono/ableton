@@ -28,7 +28,7 @@ Usage
 
 Les temps s'ecrivent en secondes (`93.4`) ou en `m:s` (`1:33.4`).
 
-ffmpeg n'existe que cote Windows sur cette machine : les chemins `/mnt/X/...`
+ffmpeg est appele cote Windows (ffmpeg.exe dans le PATH) : les chemins `/mnt/X/...`
 sont traduits en `X:\\...`. La destination **doit** etre sur un disque Windows,
 jamais sous `/home` : Live ne sait pas lire un chemin WSL.
 """
@@ -37,16 +37,15 @@ import os
 import subprocess
 import sys
 
+from wsl_paths import is_on_windows_drive, to_windows_path
+
 FFMPEG = "ffmpeg.exe"
 FFPROBE = "ffprobe.exe"
 
+# Zero echantillon d'ecart est ce que l'outil atteint reellement (mesure). On en
+# tolere deux pour absorber un arrondi de conteneur, pas davantage.
+TOLERANCE_ECHANTILLONS = 2
 
-def to_windows_path(path):
-    """Traduire /mnt/e/x en E:\\x — ffmpeg et Live sont des binaires Windows."""
-    real = os.path.abspath(path)
-    if real.startswith("/mnt/") and len(real) > 6 and real[6] == "/":
-        return real[5].upper() + ":" + real[6:].replace("/", "\\")
-    return real
 
 
 def refuser_chemin_wsl(path, role):
@@ -55,13 +54,12 @@ def refuser_chemin_wsl(path, role):
     Un process Windows qui lit \\\\wsl.localhost\\... plante ou rend faux. Mieux
     vaut refuser maintenant que produire un fichier que Live ignorera.
     """
-    windows = to_windows_path(path)
-    if len(windows) < 2 or windows[1] != ":":
+    if not is_on_windows_drive(path):
         raise SystemExit(
             "{0} est sous WSL ({1}) : Live ne pourra pas le lire.\n"
-            "Ecrire sur un disque Windows, par exemple "
-            "/mnt/e/WORK/VIDEO/teaser88_v2/audio/".format(role, path))
-    return windows
+            "Ecrire sur un disque Windows, par exemple sous /mnt/c/ "
+            "ou /mnt/e/.".format(role, path))
+    return to_windows_path(path)
 
 
 def parse_temps(texte):
@@ -207,25 +205,42 @@ def main():
 
     infos_dst = duree_reelle(args.destination)
     obtenue = infos_dst.get("duree_decodee", 0.0)
+    sr = int(infos_dst.get("sample_rate") or args.sr or 48000)
     beats = obtenue * args.tempo / 60.0
     ecart_ms = (obtenue - duree) * 1000.0
+    ecart_ech = round(obtenue * sr) - round(duree * sr)
 
     print("Extrait ecrit : {0}".format(dst_win))
     print("  source     {0:.4f} s @ {1} Hz".format(
         duree_src or 0.0, infos_src.get("sample_rate", "?")))
     print("  demande    {0:.4f} s  (de {1:.4f} a {2:.4f})".format(duree, debut, debut + duree))
-    print("  obtenu     {0:.4f} s  ({1:+.2f} ms)".format(obtenue, ecart_ms))
+    print("  obtenu     {0:.4f} s  ({1:+.2f} ms, {2:+d} echantillon(s))".format(
+        obtenue, ecart_ms, ecart_ech))
     if args.fondu_entree or args.fondu_sortie:
         print("  fondus     {0:.3f} s en entree, {1:.3f} s en sortie (cuits dans le fichier)".format(
             args.fondu_entree, args.fondu_sortie))
     print("  a {0:g} BPM  {1:.4f} beats  =  {2:.4f} mesures en 4/4".format(
         args.tempo, beats, beats / 4.0))
-    if abs(ecart_ms) > 5.0:
-        print("  ATTENTION : ecart de {0:+.1f} ms avec la duree demandee.".format(ecart_ms))
     print()
     print("  Poser dans Live SANS warping, sinon Live etire l'extrait sur la grille :")
     print("    create_arrangement_audio_clip(track_index=N, warp=False,")
     print("        file_path=r\"{0}\", start_bar=..., start_beat=...)".format(dst_win))
+
+    # Le controle REFUSE, il n'avertit pas. Il avertissait au-dela de 5 ms et
+    # rendait 0 : un extrait faux de 40 ms sortait avec une ligne « ATTENTION »
+    # qu'on peut ne pas lire, et allait se poser dans Live.
+    #
+    # Le seuil est en ECHANTILLONS, et il est serre : mesure sur quatre durees
+    # non rondes (7,1234 s · 3,00001 s · 12,5 s · 0,9999 s), `-ss` + `-t` sort a
+    # **zero echantillon d'ecart**. Ce n'est donc pas une tolerance de confort,
+    # c'est la precision reellement atteinte par l'outil. Tout ecart signale
+    # autre chose : une source tronquee, un filtre qui rogne, un format inattendu.
+    if abs(ecart_ech) > TOLERANCE_ECHANTILLONS:
+        sys.stderr.write(
+            "EXTRAIT REFUSE : {0:+d} echantillon(s) d'ecart avec la duree demandee "
+            "({1:+.2f} ms). Attendu au plus {2}.\n".format(
+                ecart_ech, ecart_ms, TOLERANCE_ECHANTILLONS))
+        return 1
     return 0
 
 

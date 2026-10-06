@@ -17,3 +17,6 @@ __pycache__/
 # Système
 .DS_Store
 *.log
+
+# Tests
+.pytest_cache/

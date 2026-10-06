@@ -35,6 +35,9 @@ l'hote ne sert a rien. Ce script s'en sort seul — il se rejoue via le Python
 Windows en se passant son propre source sur stdin. Pas de copie a garder
 synchronisee, et surtout pas de chemin \\\\wsl.localhost\\... donne a un
 binaire Windows, ce qui echoue ou ment.
+
+Le Python Windows est trouve par ABLETON_MCP_PYTHON, sinon dans le venv de
+ABLETON_MCP_DIR, sinon dans %USERPROFILE%\\dev\\ableton-mcp.
 """
 import json
 import os
@@ -44,7 +47,36 @@ import sys
 
 HOST, PORT = "127.0.0.1", 9877
 TIMEOUT = 15.0
-WIN_PYTHON = "/mnt/c/Users/elphono/dev/ableton-mcp/.venv/Scripts/python.exe"
+
+
+def windows_python():
+    """Locate the Windows Python of the MCP server venv, as a WSL path.
+
+    ABLETON_MCP_PYTHON wins; otherwise the venv of ABLETON_MCP_DIR; otherwise
+    the default checkout, %USERPROFILE%\\dev\\ableton-mcp. Returns None when
+    nothing can be resolved (not under WSL, cmd.exe missing).
+    """
+    explicit = os.environ.get("ABLETON_MCP_PYTHON")
+    if explicit:
+        return explicit
+    repo = os.environ.get("ABLETON_MCP_DIR")
+    if not repo:
+        try:
+            # Run from a Windows drive: from a WSL cwd, cmd.exe prints a UNC
+            # warning on stderr in the console code page, which is not UTF-8.
+            profile = subprocess.run(
+                ["cmd.exe", "/c", "echo %USERPROFILE%"], cwd="/mnt/c",
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, errors="replace", timeout=10).stdout.strip()
+            home = subprocess.run(
+                ["wslpath", "-u", profile],
+                capture_output=True, text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if not home:
+            return None
+        repo = os.path.join(home, "dev", "ableton-mcp")
+    return os.path.join(repo, ".venv", "Scripts", "python.exe")
 
 
 def coerce(text):
@@ -103,12 +135,13 @@ def relay_through_windows():
     N'est tente qu'apres un refus de connexion : si un jour l'hote joint Live
     directement, le chemin normal continue de marcher sans detour.
     """
-    if not os.path.exists(WIN_PYTHON):
+    win_python = windows_python()
+    if not win_python or not os.path.exists(win_python):
         return None
     with open(__file__, "rb") as handle:
         source = handle.read()
     done = subprocess.run(
-        [WIN_PYTHON, "-X", "utf8", "-"] + sys.argv[1:],
+        [win_python, "-X", "utf8", "-"] + sys.argv[1:],
         input=source, capture_output=True,
     )
     sys.stdout.write(done.stdout.decode("utf-8", "replace"))
