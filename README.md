@@ -48,7 +48,8 @@ Extracts must arrive already cut and already faded, as WAV, and be placed with
 | `analyse_audio.py` | Tempo (±1 BPM, sub-frame interpolated) and key of an audio file |
 | `wsl_paths.py` | `/mnt/e/x` → `E:\x` translation for Windows binaries |
 
-The MCP server itself is a fork of
+The MCP server itself is
+**[elphono/ableton-mcp-extended](https://github.com/elphono/ableton-mcp-extended)**, a fork of
 [uisato/ableton-mcp-extended](https://github.com/uisato/ableton-mcp-extended) with
 audio and return tracks, mute/solo/arm, sends, a full mixer snapshot, MIDI note
 read-back and removal, **runtime LOM introspection** (`inspect_lom`), and fixes for
@@ -58,7 +59,8 @@ details.
 ## Requirements
 
 - Windows 10/11 with WSL2, and Ableton Live 12 (tested on 12.4.3 Suite)
-- A checkout of the MCP server with its Windows venv
+- A checkout of [the MCP server fork](https://github.com/elphono/ableton-mcp-extended)
+  on a Windows drive, with its Windows venv (`run_server.bat` finds its own folder)
 - `ffmpeg.exe` / `ffprobe.exe` in the Windows `PATH`
 - Python 3.10+ in WSL with `numpy` (see `requirements.txt`)
 
@@ -97,7 +99,8 @@ toggling the control surface does not reload a modified script.
 
 | | Item | Why |
 |---|---|---|
-| ☐ | **Publish the MCP server fork** next to this repo | The fixes described here live in a local checkout today |
+| ☑ | **Publish the MCP server fork** — [elphono/ableton-mcp-extended](https://github.com/elphono/ableton-mcp-extended) | Done |
+| ☐ | Upstream the generic fixes to uisato/ableton-mcp-extended | Everyone using the original server hits the same silent failures |
 | ☐ | **AI coaching HUD** — a Windows overlay that follows the live set through LOM listeners and answers questions, suggests next steps, and explains what is on screen to a Live beginner | The original motivation: learning Live with a guide that sees the session |
 | ☐ | `project.json` — tempo, key, paths and sources of a project in one file | Tempo is a CLI argument today, retyped on every call |
 | ☐ | Listening annotations — a place to record what the ear decided and no measurement says | Extracts that pass every measurement still get rejected by ear in seconds |

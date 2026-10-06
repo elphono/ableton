@@ -3,7 +3,9 @@
 Outillage autour d'un serveur MCP `ableton` : fork maison de
 [uisato/ableton-mcp-extended](https://github.com/uisato/ableton-mcp-extended).
 Ce dépôt porte les outils locaux et le savoir **mesuré** sur le Live Object Model ;
-le fork du serveur vit dans un checkout séparé (voir plus bas).
+le fork du serveur vit dans son propre dépôt,
+[elphono/ableton-mcp-extended](https://github.com/elphono/ableton-mcp-extended)
+(remotes : `origin` = le fork, `upstream` = uisato). Les deux sont publics.
 
 **Politique de langue de ce dépôt** : `README.md` en anglais (dépôt public),
 `CLAUDE.md` en français, code et tests en anglais pour toute écriture nouvelle.
@@ -13,7 +15,7 @@ Le code existant est en français ASCII et n'est pas retraduit rétroactivement.
 
 | Quoi | Où | Variable qui le surcharge |
 |---|---|---|
-| Checkout du serveur MCP (fork) | `%USERPROFILE%\dev\ableton-mcp` | `ABLETON_MCP_DIR` (chemin WSL) |
+| Checkout du serveur MCP (fork) | `%USERPROFILE%\dev\ableton-mcp` — `run_server.bat` s'y retrouve seul (`%~dp0`) | `ABLETON_MCP_DIR` (chemin WSL) |
 | Venv Windows du serveur | `<checkout>\.venv` (Python 3.11) | `ABLETON_MCP_PYTHON` |
 | User Library d'Ableton | `%USERPROFILE%\Documents\Ableton\User Library` | `ABLETON_USER_LIBRARY` (chemin WSL) |
 | Remote Script chargé par Live | `<User Library>\Remote Scripts\AbletonMCP\__init__.py` | — |
