@@ -108,6 +108,18 @@ toggling the control surface does not reload a modified script.
 | ☐ | Systematic mutation testing of every control | Only the central properties have been mutation-tested so far |
 | ☐ | English command-line flags | Wider audience |
 
+### Ideas, not yet committed to
+
+The AI assistant is meant to be **generic**: Live is the first target, not the only
+one. Anything below should hold for another application as well.
+
+- **Ansible as the harness.** Drive and set up the application through Ansible
+  playbooks — install, configure, open a project, run a scripted sequence — so the
+  same harness can wrap other software, with Live as one inventory among others.
+- **An overlay that talks to Claude.** The overlay stays the interface for now; part
+  of it could exchange with Claude or Claude Code, so a question asked over the
+  application reaches an agent that can see and act on the session.
+
 ## License
 
 [MIT](LICENSE). Ableton and Ableton Live are trademarks of Ableton AG; this project
