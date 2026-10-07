@@ -1,0 +1,314 @@
+Exigences utilisateur — Assistant de production Ableton piloté par LLM — v0.1 du 2026-09-13
+
+Transcription récupérée le 2026-10-07. L'original (.md) a été écrit sur une autre machine puis
+déposé sur la tablette reMarkable, qui n'est plus disponible. Ce texte est la lecture du démon
+rmsync-papier (imprimé + annotations manuscrites entre crochets), reçue par la session
+8668a452 du 2026-09-26. Pages 1, 13 et 14 absentes de la transcription.
+Les blocs {"markdown": ...} sont laissés tels que le démon les a rendus.
+
+================================================================================
+
+Document « exigences-assistant-ableton-llm », écrit à la main sur la tablette.
+
+## Page 2
+
+## 2. Périmètre
+
+prévoir modularité, comme un plugin dans l'idéal qui pourrait se brancher sur ≠ DAW
+Explorer aussi l'idée de créer un DAW from scratch qui serait centré sur l'utilisation de l'IA.
+
+### Dans le périmètre
+
+- Ableton Live 12, Session View et Arrangement View
+
+[flèche du bloc d'annotations ci-dessus vers « Ableton Live 12 »]
+
+- Morceaux d'origine guitare/voix, format groupe rock/pop [« guitare/voix, » entouré d'un cercle ; trait qui traverse « format groupe rock/pop » jusqu'à une flèche vers l'annotation] c'est mon cas d'usage perso mais ne pas [?] limiter. Pour le POC, ok.
+- Composition, expansion, harmonie, structure, direction artistique, arrangement, mixage
+- Analyse de références audio externes
+- Mémoire de projet : décisions, idées parquées, références nommées
+
+### Hors périmètre
+
+- Génération audio par IA (voix, instruments synthétisés) [flèche] pour l'instant
+- Remplacement de la performance instrumentale ou vocale [flèche] pour l'instant
+- Jugement esthétique final [flèche] dans quelle mesure c'est possible ?
+- Mastering professionnel [flèche] Si on peut techniquement, si.
+- Traitement audio destructif automatique sur les prises existantes
+
+Les limitations sont acceptables pour un POC mais à prévoir en évol.
+
+---
+
+Ceci est vrai pour tout le doc sauf mention contraire.
+
+## 3. Principes directeurs
+
+Décisions de conception arrêtées. Toute exigence ultérieure doit s'y conformer.
+
+> `PR-01` **Le système propose, l'utilisateur décide.** Aucune boucle de retour automatique par écoute machine. L'utilisateur est la fonction d'évaluation.
+
+> `PR-02` **Toute proposition est additive et non destructive.** Elle ne crée que de nouveaux objets (piste mutée, device bypassé, clip dans un slot libre). Aucun objet préexistant n'est modifié.
+
+[flèche courbe] [?], mais on doit toujours pouvoir revenir en arrière.
+
+> `PR-03` **Toute proposition est auditionnable en un geste et annulable sans undo.** Valider = activer. Refuser = supprimer les objets créés.
+
+OUI
+
+> `PR-04` **Toute proposition expose son intention et ses résolutions.** Ce qu'elle a compris, ce qu'elle a choisi, pourquoi. L'annotation utilisateur s'accroche à ces éléments explicites.
+
+OUI
+
+## Page 3
+
+> **PR-05** **Bibliothèque d'outils petite et générique, connaissance en prose.** Les idiomes musicaux sont des recettes écrites, pas des fonctions. Un outil n'est créé que lorsqu'une séquence de primitives devient longue, répétée et fragile.
+
+> **PR-06** **Le nombre de propositions par demande est plafonné** (deux ou trois). Le modèle désigne sa préférée et la motive.
+
+> **PR-07** **En cas d'information manquante, le modèle questionne au lieu de deviner.**
+
+> **PR-08** **Le modèle a le devoir de conclure qu'une demande n'est pas atteignable** par les moyens disponibles (mixage, arrangement) lorsque l'écart relève de la source ou de la performance.
+
+> **PR-09** **L'outil raccourcit la boucle autour de l'humain, il ne le remplace pas.** Tout atome où la performance ou le goût est en jeu reste humain.
+
+> **PR-10** **Construction progressive.** On part de l'existant (template, locators, conventions de nommage) et on l'améliore. Aucune taxonomie parallèle.
+
+---
+
+## 4. Architecture cible
+
+[schéma encadré : architecture en couches, flèches de gauche à droite]
+
+[boîte rouge] **Utilisateur** — demande · valide · annote
+[flèche de Utilisateur vers LLM]
+[boîte blanche] **LLM** — résolution · propositions
+[flèche de LLM vers Serveur MCP]
+[boîte blanche] **Serveur MCP** — primitives génériques
+[trois flèches de Serveur MCP vers LOM · Remote Script, Max for Live et Fichier .als]
+[flèche verticale violette de Serveur MCP vers Pipeline d'analyse]
+[ligne verte pointillée de LLM vers Recueil de recettes]
+
+[boîte verte] **Recueil de recettes** — idiomes en prose
+[boîte verte] **Registre de propositions** — id · objets · intention · statut
+[boîte verte] **Corpus de références** — attributs nommés · profils
+[flèche de Pipeline d'analyse vers Corpus de références]
+
+[boîte violette] **Pipeline d'analyse** — séparation de stems · transcription rythmique · mesures spectrales · normalisation
+[flèche de Références audio externes vers Pipeline d'analyse]
+[boîte violette en pointillés] Références audio externes
+
+[grand cadre gris] **Ableton Live**
+[boîte bleue] **LOM · Remote Script** — structure · paramètres · MIDI
+[boîte bleue] **Max for Live** — DSP · capture · fichiers
+[boîte bleue] **Fichier .als** — XML hors ligne · accès total
+[boîte blanche] **Session** — locators nommés · scènes de proposition · conventions de nommage
+
+Figure 1 — Couches du système. Le LLM ne touche Live qu'à travers des primitives génériques ; la connaissance musicale et la mémoire de projet vivent hors de Live.
+
+## Page 4
+
+| Couche | Rôle | Ce qu'elle sait faire | Ce qu'elle ne sait pas faire |
+|---|---|---|---|
+| LOM | Accès en ligne à la session | Pistes, clips, devices, paramètres, notes MIDI, locators, warp et transposition des clips audio | Rendu, bounce, consolidate, freeze, création de contenu audio |
+| Max for Live | DSP et capture | Enregistrer un buffer, l'inverser, écrire un fichier, capturer le master, exposer via node.script | Modifier l'arrangement lui-même |
+| .als | Accès hors ligne | Tout, y compris ce que le LOM n'expose pas | Agir sur une session ouverte |
+| Analyse | Perception hors Live | Stems, onsets, énergie par bande, corrélation stéréo, structure | Juger un résultat |
+
+[annotation manuscrite sous le tableau]
+Quid de l'utilisation des plugins audio ou midi ? Très utile. 'ajoute une reverb style " walking on the moon " sur la guitare '
+
+## 5. Modes de travail et boucle d'interaction
+
+Un morceau ne traverse pas les phases une fois dans l'ordre. Il y boucle, et chaque atome se vit dans un mode dominant. Le mode conditionne le rôle possible de l'outil.
+
+- **perception** : lire l'état de la session ou d'un audio
+- **divergent** : produire des options
+- **convergent** : trier, comparer, décider
+- **mécanique** : matérialiser dans Live
+- **humain** : performance ou goût, irremplaçable
+
+[schéma encadré : quatre cases en ligne reliées par des flèches vers la droite : « Demande / langage musical » → « Résolution / où · avec quoi · comment » → « Proposition / objets mutés + intention » → « Audition / un geste valide · refuse · annote » ; flèche pointillée de Résolution vers Demande, étiquetée « information manquante : question » ; flèche verte partant d'Audition et revenant vers la gauche, étiquetée « valider = activer » ; flèche orange partant d'Audition vers Résolution, étiquetée « annoter = réviser une résolution identifiée » ; flèche rouge partant d'Audition et revenant vers la gauche, étiquetée « refuser = supprimer les objets créés »]
+
+Figure 2 — Boucle d'interaction. L'annotation ne porte pas sur le résultat sonore mais sur la résolution qui a produit le résultat.
+
+## 6. Cartographie du workflow
+
+Décomposition du processus en phases et atomes. Chaque atome porte un identifiant, son mode dominant, et le marquage des atomes humains ou hors Ableton.
+
+## Page 5
+
+P D C M H ⊘ hors Ableton
+
+## Phase 0 — Capture
+
+| Id | Atome | Mode |
+|---|---|---|
+| A-0.1 | Enregistrer l'idée brute (memo vocal) ⊘ | H |
+| A-0.2 | Transcrire : tempo, tonalité, accords, contour mélodique, fragments de texte | P |
+| A-0.3 | Mettre en session : template, tempo, click, piste guide | M |
+
+[accolade manuscrite à gauche englobant A-0.2 et A-0.3, avec une flèche qui part de l'accolade vers le texte manuscrit en dessous]
+
+= préparation d'une session, c'est déjà une grande aide. Etude faisabilité (EF)
+
+## Phase 1 — Idée unitaire guitare/voix
+
+| Id | Atome | Mode |
+|---|---|---|
+| A-1.1 | Riff ou progression | H |
+| A-1.2 | Mélodie vocale sur la progression | H |
+| A-1.3 | Accroche textuelle associée | H |
+| A-1.4 | Qualifier l'idée : couplet, refrain, pont | C |
+| A-1.5 | Décider si l'idée mérite d'aller plus loin | C H |
+
+## Phase 2 — Expansion
+
+| Id | Atome | Mode |
+|---|---|---|
+| A-2.1 | Variations de la cellule : rythmique, harmonique, mélodique [manuscrit à droite : EF] | D |
+| A-2.2 | Partie qui répond (trouver le refrain d'un couplet, et inversement) | D H |
+| A-2.3 | Connecteurs : pré-refrain, pickup, turnaround [manuscrit à droite : Comment tu produis des idées sans] | D |
+| A-2.4 | Modulation éventuelle [manuscrit à droite : texte ou musique ?] | D |
+| A-2.5 | Garder, jeter, parquer | C |
+
+[manuscrit en petit dans la marge de droite, à hauteur de A-2.3 et A-2.4 : générer de musique ?]
+
+## Page 6
+
+{"markdown":"## Phase 3 — Harmonie et mélodie\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-3.1 | Analyse fonctionnelle de l'existant | P |\n| A-3.2 | Réharmonisation : substitutions, emprunts modaux, renversements, notes de basse | D |\n| A-3.3 | Contour mélodique : ambitus, point culminant, répétition/variation | P D |\n| A-3.4 | Rapport mélodie/harmonie : notes cibles, tensions, frottements | P |\n| A-3.5 | Contre-mélodies, voix secondaires, harmonies vocales | D |\n| A-3.6 | Rythme harmonique | C |\n\n[accolade à gauche regroupant les lignes A-3.1 à A-3.6, avec « EF » écrit à sa gauche]\n\nEF\n\nConcrètement qu'est ce que la machine peut- faire à ce sujet ?\n\n## Phase 4 — Structure\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-4.1 | Inventaire des sections disponibles | P |\n| A-4.2 | Choix de forme | D |\n| A-4.3 | Durées par section (détecter qu'une section traîne) | C H |\n| A-4.4 | Courbe d'énergie globale | C |\n| A-4.5 | Intro, outro | D |\n| A-4.6 | Points de tension/résolution : drop, break, silence | D |\n| A-4.7 | Concrétisation en locators nommés | M |\n\n[accolade à droite du tableau, regroupant les lignes A-4.1 à A-4.4]\n\nIHM Style plugin moderne qui regroupe tous ces outils ?\n\n[flèche partant de A-4.6 vers la droite]\n\n→ pouvoir pointer, entourer pour cibler !\n\n## Phase 5 — Texte\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-5.1 | Thème, angle ⊘ | H |\n| A-5.2 | Prosodie : accents du texte sur les temps forts | P |\n| A-5.3 | Schéma de rimes | D |\n| A-5.4 | Répétition de l'accroche | C |\n\n[accolade à gauche de la note, regroupant les lignes A-5.1 à A-5.3]\n\nIHM qui permettait d'aligner tout le texte avec musique (tps fort), Claude pourrait suggérer des chgts plus pertinent avec tout le contexte du morceau et les contraintes."}
+
+## Page 7
+
+{"markdown":"## Phase 6 — Direction artistique\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-6.1 | Références ciblées (voir 7.5) | P C |\n| A-6.2 | Palette instrumentale | D C |\n| A-6.3 | Timbre par instrument : ampli, pédales, patch | D |\n| A-6.4 | Espace global : taille de pièce, profondeur | C |\n| A-6.5 | Époque et esthétique de production | C |\n| A-6.6 | Contrainte de jouabilité live par le groupe | C |\n\n[accolade à gauche des lignes A-6.1 à A-6.6, prolongée par une flèche courbe qui descend vers la note manuscrite ci-dessous]\n\nComment ça se traduirait dans notre système ? A approfondir\n\n## Phase 7 — Arrangement\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-7.1 | Attribution des rôles : fondation, tapis harmonique, mélodie, ornement | C |\n| A-7.2 | Entrées et sorties par section | D |\n| A-7.3 | Registres : collisions | P |\n| A-7.4 | Interlock rythmique (basse/kick) | P |\n| A-7.5 | Fills, ornements, ear candy | D |\n| A-7.6 | Transitions entre sections | D |\n| A-7.7 | Doublages et layering | D |\n\nPenser à :\n\n- Explication théorique disponible sur chaque atome.\n- Workflow guidé : suggestions, enchainements d'étapes, etc."}
+
+## Page 8
+
+{"markdown": "## Phase 8 — Production\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-8.1 | Batterie : programmation ou prise, humanisation | M H |\n| A-8.2 | Basse | H |\n| A-8.3 | Guitares : prise, DI et réamp, doubles | H |\n| A-8.4 | Voix : prise, comping, doubles, harmonies | H |\n| A-8.5 | Claviers, synthés, samples | M |\n| A-8.6 | Édition : timing, pitch, nettoyage, fades | M |\n| A-8.7 | Sound design des éléments FX | D |\n\n[trait noir arrondi entourant les pastilles H de A-8.1 à A-8.4 ; flèche partant de cet encadrement vers le texte manuscrit ci-dessous]\n\npossibilité de générer du midi pour tous les instrus dans le Poc\n\n## Phase 9 — Mixage\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-9.1 | Gain staging et organisation : couleurs, groupes, bus | M |\n| A-9.2 | Balance statique | C |\n| A-9.3 | Nettoyage : HPF, résonances | M |\n| A-9.4 | Placement spectral par rôle | C |\n| A-9.5 | Dynamique par piste et par bus | C |\n| A-9.6 | Espace : panning, reverb, delay, profondeur | C |\n| A-9.7 | Automation par section | D |\n| A-9.8 | Comparaison à la référence | P |\n| A-9.9 | Bus master | C |\n\n## Phase 10 — Finalisation\n\n| Id | Atome | Mode |\n|---|---|---|\n| A-10.1 | Mastering léger | M |\n| A-10.2 | Exports et versions (instru, sans voix pour la répétition) | M |\n| A-10.3 | Chart pour le groupe : structure, tempo, accords | M |"}
+
+## Page 9
+
+### Transverse
+
+| Id | Atome | Mode |
+|---|---|---|
+| A-T.1 | Décider (méta-problème de tous les atomes convergents) | C H |
+| A-T.2 | Parquer les idées rejetées pour réutilisation | mémoire |
+| A-T.3 | Tracer le pourquoi des décisions | mémoire |
+| A-T.4 | Écouter avec du recul (planification des pauses) | H |
+
+[trait horizontal épais]
+
+## 7. Exigences fonctionnelles
+
+### 7.1 Rôles de l'outil par atome
+
+Pour chaque atome, les exigences seront dérivées en répondant à six questions. Les réponses définissent des rôles, et ce sont les rôles qui deviennent des primitives.
+
+[annotation manuscrite, écrite au-dessus de l'en-tête du tableau, coupée par le bord droit de la page] L'implementation technique devra suivre cette logique atomique, à étudi[?] + tard
+
+| Rôle | Question |
+|---|---|
+| Percevoir | Que doit lire le système dans la session ou dans un audio pour comprendre l'état ? |
+| Diverger | Quelles options peut-il générer, et sous quelle forme auditionnable ? |
+| Converger | Contre quel critère peut-il trier, et ce critère est-il formulable ? |
+| Exécuter | Quelle proposition non destructive dans Live ? |
+| Mémoriser | Que faut-il garder pour les atomes suivants ou le morceau suivant ? |
+| Questionner | Quelle information manque presque toujours, qu'il vaut mieux demander que deviner ? |
+
+> **Question disqualifiante.** Où est l'humain dans cet atome, et l'outil raccourcit-il la boucle autour de lui ou tente-t-il de le remplacer ? Dans le second cas, l'atome n'est pas outillé.
+
+### 7.2 Proposition auditionnable
+
+> `EX-P-01` Une proposition ne crée que des objets nouveaux : piste mutée, device bypassé, clip dans un slot de Session View libre, scène dédiée.
+
+> `EX-P-02` Une proposition s'auditionne par un seul geste : mute/unmute, enable/bypass, lancement de scène.
+
+## Page 10
+
+> EX-P-03 Le refus supprime exactement les objets créés par la proposition, sans recours à la pile d'undo de Live.
+
+> EX-P-04 Une proposition est réalisable en LOM pur. Ce qui exige un rendu ou un traitement audio reste une suggestion texte.
+
+> EX-P-05 Une proposition déclare son intention en termes musicaux et liste chaque paramètre choisi avec sa justification.
+
+> EX-P-06 La Session View sert de zone de brouillon : les propositions occupent des scènes vides, en parallèle de l'arrangement.
+
+[annotation manuscrite] C'est lié à Live. Il faudra étudier sérieusement l'idée de partir de 0 pour le DAW.
+
+### 7.3 Registre de propositions
+
+> EX-R-01 Chaque proposition reçoit un identifiant unique et est enregistrée avec : les objets Live créés, l'intention déclarée, les résolutions effectuées, le statut (proposée, validée, refusée, révisée), les annotations utilisateur.
+
+> EX-R-02 Le registre est persisté à côté du fichier .als du morceau.
+
+> EX-R-03 Une annotation référence explicitement une résolution ou un paramètre de la proposition, ce qui rend la révision mécanique.
+
+> EX-R-04 Les propositions refusées restent consultables (idées parquées, A-T.2).
+
+### 7.4 Résolution des demandes
+
+Une demande en langage musical contient trois lacunes distinctes, réparées par trois moyens distincts.
+
+[schéma : un bandeau rouge en haut, relié par trois traits à trois cases violettes alignées en dessous]
+
+« Je veux une transition style cymbale inversée entre ces deux parties »
+
+| Où | Avec quoi | Comment |
+|---|---|---|
+| « ces deux parties » | « cymbale » | « transition inversée » |
+| réparé par : locators nommés, sinon : question | réparé par : matériau déjà en session, sinon : index de matériau | réparé par : recette en prose, placement, durée, niveau |
+
+[annotation manuscrite, sous la case « Où »] Plugin ou layering pour [?] ?
+
+[annotation manuscrite avec une flèche pointant vers la case « Avec quoi »] possibilité de recherche dans des banque de données style "Splice"
+
+Figure 3 — Les trois résolutions. Un échec se diagnostique en identifiant laquelle a manqué, ce qui détermine quoi construire ensuite.
+
+## Page 11
+
+{"markdown": "> **EX-D-01** La session maintient des locators nommés par section (A-4.7). Ils constituent la référence spatiale de toute demande.\n\n> **EX-D-02** Le matériau sonore est résolu en priorité dans la session existante (samples déjà chargés), puis dans un index de matériau personnel. [annotation manuscrite : + banques de données+ synthétiseurs]\n\n> **EX-D-03** Les idiomes musicaux sont décrits dans un recueil de recettes en prose, éditable par l'utilisateur. Une recette contient : l'intention, les paramètres typiques, les contraintes de placement, les variantes.\n\n> **EX-D-04** Chaque proposition rend explicites ses trois résolutions afin qu'un échec soit imputable à l'une d'elles.\n\n> **EX-D-05** Une recette est promue en outil uniquement lorsque sa séquence de primitives est longue (ordre de dix appels), répétée, et présente un mode d'échec dont le modèle se relève mal.\n\n## 7.5 Références ciblées\n\nUne référence n'est pas un morceau mais un quadruplet. Un morceau entier est incomparable à une partie ; un attribut isolé sur une section isolée d'un stem isolé se mesure ou se transcrit.\n\n[schéma : un bandeau rouge « J'aime la syncopation et la lourdeur des guitares sur le pont de tel morceau » surmonte quatre cases : « Morceau — tel morceau », « Section — le pont », « Instrument — guitares », « Attributs — syncopation · lourdeur ». Sous la case Attributs, deux étiquettes : « musical » (vert) et « sonore » (violet). À gauche de ces étiquettes, le texte « se transcrit / se mesure ».]\n\nFigure 4 — Le quadruplet de référence. Les attributs musicaux se transcrivent (grille rythmique), les attributs sonores se mesurent (profil spectral, dynamique, largeur).\n\n> **EX-F-01** Une référence est saisie sous forme de quadruplet : morceau, section, instrument, attribut(s).\n\n[annotation manuscrite : Liste exhaustive ? — avec un trait qui la relie à « attributs musicaux » dans EX-F-02]\n\n> **EX-F-02** Les attributs musicaux (syncopation, densité, placement, rythme harmonique) sont extraits par transcription : séparation du stem, détection d'onsets, grille rythmique réutilisable comme gabarit.\n\n[« attributs musicaux » est encerclé à la main ; un trait relie ce cercle à celui de « attributs sonores » dans EX-F-03]\n\n> **EX-F-03** Les attributs sonores (lourdeur, largeur, saturation, espace) sont extraits par mesure : énergie par bande, crest factor, corrélation stéréo, estimation de decay.\n\n[« attributs sonores » est encerclé à la main]"}
+
+## Page 12
+
+{"markdown": "> **EX-F-04** Toute mesure comparant une référence à la session est normalisée au même point de chaîne (LUFS commun, ou bus master avec limiteur de travail).\n\n> **EX-F-05** Un attribut extrait est stocké sous un nom invocable dans les demandes futures (« avec la lourdeur de X »). L'ensemble forme un vocabulaire personnel.\n\n> **EX-F-06** Le corpus accumule plusieurs références par style pour produire des plages cibles plutôt que des valeurs uniques.\n\n> **EX-F-07** La connaissance du modèle sur le morceau (techniques, crédits) est consignée séparément des mesures et traitée comme hypothèse à vérifier.\n\n### 7.6 Analyse d'écart à la référence\n\nL'analyse ne produit pas une correction mais un diagnostic trié par couche, car les trois couches n'ont pas le même coût de réparation.\n\n[schéma encadré : trois cartes côte à côte, verte, jaune et rouge]\n\n| Équilibre | Densité | Source |\n|---|---|---|\n| rapports de niveau, EQ, bas-médium | nombre de couches, octaves, ornements | samples, pièce, performance |\n| **Proposition dans Live** | **Proposition dans Live** | **Non réparable par mixage** |\n| coût : immédiat | coût : touche l'arrangement | le système doit le dire (PR-08) |\n\nFigure 5 — Triage de l'écart. Le cas le plus fréquent est le troisième.\n\n> **EX-E-01** La comparaison exploite l'asymétrie : les stems de la session sont natifs et exacts, ceux de la référence sont séparés. La comparaison se limite au niveau de détail fiable côté référence.\n\n[annotation manuscrite : trait sous « séparés. La comparaison se limite », avec une flèche] ↳ on sait faire sa ?\n\n> **EX-E-02** Le résultat est un diff trié par couche (équilibre, densité, source), chaque item étant routé vers une proposition dans Live ou vers une conclusion de non-atteignabilité.\n\n> **EX-E-03** Chaque item du diff se formule comme une proposition à intention explicite conforme à 7.2."}
+
+## Page 15
+
+## 9. État d'avancement
+
+| Élément | État | Reste à faire |
+|---|---|---|
+| Principes directeurs | Arrêtés | — |
+| Architecture cible | Arrêtée | Choix de la couche transport (AbletonOSC, Remote Script dédié) |
+| Cartographie du workflow | Établie | Revue des atomes par l'utilisateur |
+| 7.2 à 7.4 Proposition, registre, résolution | Développés | Format du registre |
+| 7.5 à 7.6 Références et écart | Développés | Choix des mesures, format des attributs nommés |
+| Rôles de l'outil, phases 0 à 1 | À développer | Appliquer 7.1 à chaque atome |
+| Rôles de l'outil, phase 2 (expansion) | À développer | Candidate prioritaire |
+| Rôles de l'outil, phases 3 à 6 | À développer | |
+| Rôles de l'outil, phase 7 (arrangement) | À développer | Candidate prioritaire |
+| Rôles de l'outil, phases 8 à 10 | À développer | |
+| Rôles de l'outil, transverse | À développer | Priorité élevée (rentabilité) |
+| Recueil de recettes | Non commencé | Première recette : transition par cymbale inversée |
+
+Etude de faisabilité indispensable pour ne pas lancer quelque chose d'inéalisable .
+
+## Page 16
+
+## 10. Glossaire
+
+| | |
+|---|---|
+| **Atome** | Plus petite unité de travail identifiable dans le processus de création d'un morceau. |
+| **Proposition** | Ensemble d'objets créés dans Live par le système, additifs et mutés, accompagné d'une intention explicite. |
+| **Résolution** | Traduction d'un élément flou d'une demande (où, avec quoi, comment) en valeur concrète. |
+| **Recette** | Description en prose d'un idiome musical : intention, paramètres, contraintes de placement. |
+| **Primitive** | Outil générique de bas niveau exposé au modèle, composable. |
+| **Référence ciblée** | Quadruplet morceau, section, instrument, attribut. |
+| **Attribut nommé** | Profil mesuré ou transcrit d'une référence ciblée, stocké sous un nom invocable. |
+| **LOM** | Live Object Model, API interne d'Ableton Live accessible par Remote Script et Max for Live. |
+
+Exigences utilisateur — Assistant de production Ableton piloté par LLM — v0.1 — 13 septembre 2026 — usage personnel
+
+[petit tracé au stylo tout en bas à gauche, coupé par le bord de la page : un X entouré d'un cercle]
