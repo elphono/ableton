@@ -101,7 +101,7 @@ toggling the control surface does not reload a modified script.
 |---|---|---|
 | ☑ | **Publish the MCP server fork** — [elphono/ableton-mcp-extended](https://github.com/elphono/ableton-mcp-extended) | Done |
 | ☐ | Upstream the generic fixes to uisato/ableton-mcp-extended | On hold: no upstream activity since 2026-05, 10 open PRs unanswered (several duplicate these fixes) |
-| ☐ | **AI coaching HUD** — a Windows overlay that follows the live set through LOM listeners and answers questions, suggests next steps, and explains what is on screen to a Live beginner | The original motivation: learning Live with a guide that sees the session |
+| ☐ | **AI assistant** — a Windows overlay that follows the live set through LOM listeners and answers questions, suggests next steps, and explains what is on screen to a Live beginner | The original motivation: learning Live with a guide that sees the session |
 | ☐ | `project.json` — tempo, key, paths and sources of a project in one file | Tempo is a CLI argument today, retyped on every call |
 | ☐ | Listening annotations — a place to record what the ear decided and no measurement says | Extracts that pass every measurement still get rejected by ear in seconds |
 | ☐ | Spectrogram of joins — make clicks, overlaps and cuts mid-note *visible* | An agent has no ears; it can still look at sound |
